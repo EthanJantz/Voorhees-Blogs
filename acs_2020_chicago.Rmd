@@ -28,6 +28,8 @@ acs_vars <- c(
   total_households = "B25003_001",
   owner_households = "B25003_002",
   renter_households = "B25003_003",
+  vacant_units = "B25004_001",
+  vacant_units_forrent = "B25004_002",
   total_families = "B05010_001",
   belowpoverty_families = "B05010_002",
   median_income = "B25119_001",
@@ -66,36 +68,90 @@ data <- bind_rows(chi_2020, chi_2015) %>%
 
 # Socio-economic Change in Chicago, 2015 - 2020
 
+The release of the 2020 5-year American Community Survey data allows for an assessment of changes in Chicago's socio-economic composition of both individuals and households. This blog is the first in a series exploring changes in Chicago's demographic and economic composition. 
+
 ## Demographic Change
+
+```{r population total}
+data %>%
+  select(year, total_population) %>%
+  mutate(total_population = scales::comma(total_population))
+```
+
+Chicago lost an estimated 18,187 residents between 2015 and 2020. Demographically, Chicago has seen declines in groups identifying as white, black, hispanic, and other (a category that includes anyone identifying as neither white, black, asian, native hawaiian/pacific islander, or native american) while groups identifying as asian, native hawaiian/pacific islander, and two or more races increase. People identifying as two or more races saw the biggest change in Chicago's population, growing from 2.4% in 2015 to 5.2% in 2020. 
 
 ```{r demographic}
 data %>%
-  mutate(white_pct = white_population / total_population,
-         black_pct = black_population / total_population,
-         asian_pct = asian_population / total_population,
-         two_pct = two_population / total_population,
-         other_pct = grouped_other_population / total_population,
-         hispanic_pct = hispanic_population / total_population,
-         nothispanic_pct = nothispanic_population / total_population,
-         total_pct = white_pct + black_pct + other_pct,
-         across(ends_with("_population"), scales::comma),
-         across(ends_with("_pct"), scales::percent)) %>%
-  select(year, total_population, white_pct, white_population, black_pct, black_population, asian_pct, asian_population, two_pct, two_population, hispanic_pct, hispanic_population, nothispanic_pct, nothispanic_population, other_pct, other_population) 
+  mutate(
+    white_pct = white_population / total_population,
+    black_pct = black_population / total_population,
+    asian_pct = asian_population / total_population,
+    api_pct = api_population / total_population,
+    other_pct = other_population / total_population,
+    two_pct = two_population / total_population,
+    # other_pct = grouped_other_population / total_population,
+    hispanic_pct = hispanic_population / total_population,
+    nothispanic_pct = nothispanic_population / total_population,
+    total_pct = white_pct + black_pct + other_pct,
+    # across(ends_with("_population"), scales::comma),
+    # across(ends_with("_pct"), scales::percent)
+         ) %>%
+  select(
+    year, #total_population, 
+    white_pct, #white_population, 
+    black_pct, #black_population, 
+    asian_pct, #asian_population, 
+    api_pct, #api_population,
+    two_pct, #two_population, 
+    other_pct, #other_population
+    hispanic_pct, #hispanic_population, 
+    # nothispanic_pct, #nothispanic_population 
+  ) %>%
+  pivot_longer(
+    cols = c(white_pct:hispanic_pct),
+    names_to = "Race",
+    names_pattern = "(.*)_pct"
+  ) %>%
+  pivot_wider(
+    names_from = "year",
+    values_from = "value"
+  ) %>%
+  mutate(Change = `2020` - `2015`,
+         across(c(`2020`:Change), scales::percent, accuracy = .01))
 ```
 
 ## Household Change
 
-```{r tenure}
+```{r household total}
 data %>%
-  mutate(renter_pct = renter_households / total_households,
-         owner_pct = owner_households / total_households,
-         total_households = scales::comma(total_households),
-         across(ends_with(c("rent", "income", "value")), scales::dollar),
-         across(ends_with("_pct"), scales::percent)) %>%
-  select(year, total_households, renter_pct, median_renter_income, median_gross_rent, owner_pct, median_owner_income, median_home_value)
+  select(year, total_households) %>%
+  mutate(total_households = scales::comma(total_households))
 ```
 
-## Poverty Change
+Chicago gained an estimated 45,000 households between 2015 and 2020. In the context of a net population loss it's likely that household size has decreased on average. We will examine this and other questions on household composition in later posts.
+
+```{r tenure}
+data %>%
+  mutate(
+    renter_pct = renter_households / total_households,
+    owner_pct = owner_households / total_households,
+    vacant_forrent_pct = vacant_units_forrent / vacant_units,
+    # total_households = scales::comma(total_households),
+    vacant_units = scales::comma(vacant_units),
+    across(ends_with(c("rent", "income", "value")), scales::dollar),
+    across(ends_with("_pct"), scales::percent)) %>%
+  select(year, renter_pct, median_gross_rent, owner_pct, median_home_value, vacant_units, vacant_forrent_pct)
+```
+
+Chicago saw a modest increase in its share of homeowners with a corresponding decrease in renter households. Median gross rent increased by 19% (\$189) and the median home value grew by 20% (\$44,700). The number of vacant units decreased by approximately 20,000 units, and the share of those units that were empty rental units decreased from 27% to 25%. This indicates increasing pressure on low-income households as rental units become less available and less affordable. 
+
+```{r income}
+data %>%
+  select(year, median_income, median_renter_income, median_owner_income) %>%
+  mutate(across(ends_with("income"), scales::dollar))
+```
+
+The median income for Chicago increased by 27% (\$13,575). Renters saw a larger percent increase in median income than owners at 31% (\$10,417) and 22% ($16,711) respectively. 
 
 ```{r poverty}
 data %>%
@@ -104,6 +160,8 @@ data %>%
          across(ends_with("pct"), scales::percent)) %>%
   select(year, total_families, poverty_pct, belowpoverty_families)
 ```
+
+Chicago saw a decrease of 46,595 families (a household of related individuals) between 2015 and 2020. The share of those families living in poverty dropped by 8%, indicating an out-migration of low-income families from the city.
 
 ## Chicago Community Areas Crosswalk
 
