@@ -1,0 +1,7 @@
+"0","data %>%"
+"0","  mutate(renter_pct = renter_households / total_households,"
+"0","         owner_pct = owner_households / total_households,"
+"0","         total_households = scales::comma(total_households),"
+"0","         across(ends_with(c(""rent"", ""income"", ""value"")), scales::dollar),"
+"0","         across(ends_with(""_pct""), scales::percent)) %>%"
+"0","  select(year, total_households, renter_pct, median_renter_income, median_gross_rent, owner_pct, median_owner_income, median_home_value)"
