@@ -34,6 +34,12 @@ acs_vars <- c(
   vacant_units_forrent = "B25004_002",
   total_families = "B05010_001",
   belowpoverty_families = "B05010_002",
+  belowpoverty_own_families1 = "B17019_004",
+  belowpoverty_own_families2 = "B17019_008",
+  belowpoverty_own_families3 = "B17019_011",
+  belowpoverty_rent_families1 = "B17019_005",
+  belowpoverty_rent_families2 = "B17019_009",
+  belowpoverty_rent_families3 = "B17019_012",
   median_income = "B25119_001",
   median_owner_income = "B25119_002",
   median_renter_income = "B25119_003",
@@ -65,7 +71,9 @@ data <- bind_rows(chi_2020, chi_2015) %>%
   filter(NAME == "Chicago city, Illinois") %>%
   select(city = NAME, year, ends_with("E")) %>%
   rename_with(gsub, pattern = "E$", replacement = "") %>%
-  mutate(grouped_other_population = amind_population + api_population + other_population)
+  mutate(grouped_other_population = amind_population + api_population + other_population,
+         belowpoverty_own_families = belowpoverty_own_families1 + belowpoverty_own_families2 + belowpoverty_own_families3,
+         belowpoverty_rent_families = belowpoverty_rent_families1 + belowpoverty_rent_families2 + belowpoverty_rent_families3)
 ```
 
 # Socio-economic Change in Chicago, 2015 - 2020
@@ -163,64 +171,66 @@ data %>%
   kable_styling(latex_options = "striped")
 ```
 
-The median income for Chicago increased by 27% (\$13,575). Renters saw a larger percent increase in median income than owners at 31% (\$10,417) and 22% ($16,711) respectively. 
+The median income for Chicago increased by 27% (\$13,575). Median income for renters increased by 31% (\$10,417) and owners at 22% ($16,711). 
 
 ```{r poverty}
 data %>%
   mutate(poverty_pct = belowpoverty_families / total_families,
+         poverty_rent_pct = belowpoverty_rent_families / total_families,
+         poverty_own_pct = belowpoverty_own_families / total_families,
          across(ends_with("families"), scales::comma),
          across(ends_with("pct"), scales::percent)) %>%
-  select(year, total_families, poverty_pct, belowpoverty_families) %>% 
+  select(year, total_families, poverty_pct, belowpoverty_families, belowpoverty_rent_families, belowpoverty_own_families, poverty_rent_pct, poverty_own_pct) %>% 
   kable() %>%
   kable_styling(latex_options = "striped")
 ```
 
-Chicago saw a decrease of 46,595 families (a household of related individuals) between 2015 and 2020. The share of those families living in poverty dropped by 8%, indicating an out-migration of low-income families from the city.
+Chicago saw a decrease of 46,595 families (a household of related individuals) between 2015 and 2020. The share of those families living in poverty dropped by 8%, indicating an out-migration of low-income families from the city. The loss of low-income families was largely driven by renters at a loss of 25,086. Chicago's tightening rental market and rising rents are making the city increasingly unaffordable for low-income families. 
 
-## Chicago Community Areas Crosswalk
+<!-- ## Chicago Community Areas Crosswalk -->
 
-[The Census Bureau provides an explanation of the 2010 to 2020 tract relationships here.](https://www2.census.gov/geo/pdfs/maps-data/data/rel2020/tract/explanation_tab20_tract20_tract10.pdf) This file is joined to the tract relationship file provided by the [City of Chicago Data Portal](https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Census-Tracts-2010/5jrd-6zik) to identify which 2020 decennial tracts are related to the Chicago Community Areas (CCAs) that the 2010 decennial tracts aggregate to. We will be releasing this crosswalk file for use by other researchers in a later blog post where we explore change at the CCA level. 
+<!-- [The Census Bureau provides an explanation of the 2010 to 2020 tract relationships here.](https://www2.census.gov/geo/pdfs/maps-data/data/rel2020/tract/explanation_tab20_tract20_tract10.pdf) This file is joined to the tract relationship file provided by the [City of Chicago Data Portal](https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Census-Tracts-2010/5jrd-6zik) to identify which 2020 decennial tracts are related to the Chicago Community Areas (CCAs) that the 2010 decennial tracts aggregate to. We will be releasing this crosswalk file for use by other researchers in a later blog post where we explore change at the CCA level.  -->
 
-```{r crosswalk, include = FALSE}
-chi_tracts_2010 <- read_csv("https://data.cityofchicago.org/resource/74p9-q2aq.csv", col_types = "cccccccccc")
+<!-- ```{r crosswalk, include = FALSE} -->
+<!-- chi_tracts_2010 <- read_csv("https://data.cityofchicago.org/resource/74p9-q2aq.csv", col_types = "cccccccccc") -->
 
-cook_tracts_2010 <- tigris::tracts(state = "IL", county = "Cook", year = 2010) 
+<!-- cook_tracts_2010 <- tigris::tracts(state = "IL", county = "Cook", year = 2010)  -->
 
-chi_tracts_2010 <- cook_tracts_2010 %>%
-  right_join(chi_tracts_2010, by = c("GEOID10" = "geoid10"))
+<!-- chi_tracts_2010 <- cook_tracts_2010 %>% -->
+<!--   right_join(chi_tracts_2010, by = c("GEOID10" = "geoid10")) -->
 
-cook_tracts_2020 <- tigris::tracts(state = "IL", county = "Cook", year = 2020)
+<!-- cook_tracts_2020 <- tigris::tracts(state = "IL", county = "Cook", year = 2020) -->
 
-rel_file <- read.delim("https://www2.census.gov/geo/docs/maps-data/data/rel2020/tract/tab20_tract20_tract10_st17.txt", sep = "|", colClasses = "character")
+<!-- rel_file <- read.delim("https://www2.census.gov/geo/docs/maps-data/data/rel2020/tract/tab20_tract20_tract10_st17.txt", sep = "|", colClasses = "character") -->
 
-new_rel_file <- chi_tracts_2010 %>%
-  select(GEOID10, commarea) %>%
-  left_join(rel_file %>%
-               select(GEOID_TRACT_10, GEOID_TRACT_20), 
-             by = c("GEOID10" = "GEOID_TRACT_10")) 
+<!-- new_rel_file <- chi_tracts_2010 %>% -->
+<!--   select(GEOID10, commarea) %>% -->
+<!--   left_join(rel_file %>% -->
+<!--                select(GEOID_TRACT_10, GEOID_TRACT_20),  -->
+<!--              by = c("GEOID10" = "GEOID_TRACT_10"))  -->
 
-chi_tracts_2020 <- new_rel_file %>%
-  sf::st_drop_geometry() %>%
-  left_join(cook_tracts_2020,
-            by = c("GEOID_TRACT_20" = "GEOID")) %>%
-  select(-GEOID10, GEOID = GEOID_TRACT_20, everything())
+<!-- chi_tracts_2020 <- new_rel_file %>% -->
+<!--   sf::st_drop_geometry() %>% -->
+<!--   left_join(cook_tracts_2020, -->
+<!--             by = c("GEOID_TRACT_20" = "GEOID")) %>% -->
+<!--   select(-GEOID10, GEOID = GEOID_TRACT_20, everything()) -->
 
-p2010 <- chi_tracts_2010 %>%
-  group_by(commarea) %>%
-  summarize() %>%
-  ggplot(aes(geometry = geometry)) +
-  geom_sf(aes(fill = commarea)) +
-  theme(legend.position = "none")
+<!-- p2010 <- chi_tracts_2010 %>% -->
+<!--   group_by(commarea) %>% -->
+<!--   summarize() %>% -->
+<!--   ggplot(aes(geometry = geometry)) + -->
+<!--   geom_sf(aes(fill = commarea)) + -->
+<!--   theme(legend.position = "none") -->
 
-p2020 <- cook_tracts_2020 %>%
-  select(GEOID, geometry) %>%
-  left_join(chi_tracts_2020, by = c("GEOID")) %>%
-  drop_na() %>%
-  group_by(commarea) %>%
-  summarize() %>%
-  ggplot(aes(geometry = geometry.x)) +
-  geom_sf(aes(fill = commarea)) +
-  theme(legend.position = "none")
+<!-- p2020 <- cook_tracts_2020 %>% -->
+<!--   select(GEOID, geometry) %>% -->
+<!--   left_join(chi_tracts_2020, by = c("GEOID")) %>% -->
+<!--   drop_na() %>% -->
+<!--   group_by(commarea) %>% -->
+<!--   summarize() %>% -->
+<!--   ggplot(aes(geometry = geometry.x)) + -->
+<!--   geom_sf(aes(fill = commarea)) + -->
+<!--   theme(legend.position = "none") -->
 
-p2010 + p2020
-```
+<!-- p2010 + p2020 -->
+<!-- ``` -->
