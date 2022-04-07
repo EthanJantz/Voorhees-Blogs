@@ -2,12 +2,14 @@
 title: "Analysis of New Census Data Part 1"
 author: "Ethan Jantz"
 date: "3/31/2022"
-output: html_document
+output:
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-library(leaflet)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, error = FALSE)
+library(kableExtra)
 library(tidyverse)
 library(tidycensus)
 library(patchwork)
@@ -75,7 +77,8 @@ The release of the 2020 5-year American Community Survey data allows for an asse
 ```{r population total}
 data %>%
   select(year, total_population) %>%
-  mutate(total_population = scales::comma(total_population))
+  mutate(total_population = scales::comma(total_population)) %>%
+  kable()
 ```
 
 Chicago lost an estimated 18,187 residents between 2015 and 2020. Demographically, Chicago has seen declines in groups identifying as white, black, hispanic, and other (a category that includes anyone identifying as neither white, black, asian, native hawaiian/pacific islander, or native american) while groups identifying as asian, native hawaiian/pacific islander, and two or more races increase. People identifying as two or more races saw the biggest change in Chicago's population, growing from 2.4% in 2015 to 5.2% in 2020. 
@@ -117,7 +120,9 @@ data %>%
     values_from = "value"
   ) %>%
   mutate(Change = `2020` - `2015`,
-         across(c(`2020`:Change), scales::percent, accuracy = .01))
+         across(c(`2020`:Change), scales::percent, accuracy = .01)) %>% 
+  kable() %>%
+  kable_styling(latex_options = "striped")
 ```
 
 ## Household Change
@@ -125,7 +130,9 @@ data %>%
 ```{r household total}
 data %>%
   select(year, total_households) %>%
-  mutate(total_households = scales::comma(total_households))
+  mutate(total_households = scales::comma(total_households)) %>% 
+  kable() %>%
+  kable_styling(latex_options = "striped")
 ```
 
 Chicago gained an estimated 45,000 households between 2015 and 2020. In the context of a net population loss it's likely that household size has decreased on average. We will examine this and other questions on household composition in later posts.
@@ -135,20 +142,25 @@ data %>%
   mutate(
     renter_pct = renter_households / total_households,
     owner_pct = owner_households / total_households,
-    vacant_forrent_pct = vacant_units_forrent / vacant_units,
+    rental_vacancy_rate = vacant_units_forrent / (vacant_units + renter_households),
+    vacant_forrent_units = vacant_units_forrent / vacant_units,
     # total_households = scales::comma(total_households),
-    vacant_units = scales::comma(vacant_units),
-    across(ends_with(c("rent", "income", "value")), scales::dollar),
-    across(ends_with("_pct"), scales::percent)) %>%
-  select(year, renter_pct, median_gross_rent, owner_pct, median_home_value, vacant_units, vacant_forrent_pct)
+    across(ends_with(c("units", "forrent")), scales::comma),
+    across(ends_with(c("_rent", "income", "value")), scales::dollar),
+    across(ends_with(c("_pct", "rate")), scales::percent)) %>%
+  select(year, renter_pct, median_gross_rent, owner_pct, median_home_value, vacant_units, rental_vacancy_rate, vacant_units_forrent) %>% 
+  kable() %>%
+  kable_styling(latex_options = "striped")
 ```
 
-Chicago saw a modest increase in its share of homeowners with a corresponding decrease in renter households. Median gross rent increased by 19% (\$189) and the median home value grew by 20% (\$44,700). The number of vacant units decreased by approximately 20,000 units, and the share of those units that were empty rental units decreased from 27% to 25%. This indicates increasing pressure on low-income households as rental units become less available and less affordable. 
+Chicago saw a modest increase in its share of homeowners and decrease in renter households. Median gross rent increased by 19% (\$189) and the median home value grew by 20% (\$44,700). The rental vacancy rate decreased from 5.9% to 4.8%. This indicates increasing pressure on low-income households as rental units become less available and less affordable. 
 
 ```{r income}
 data %>%
   select(year, median_income, median_renter_income, median_owner_income) %>%
-  mutate(across(ends_with("income"), scales::dollar))
+  mutate(across(ends_with("income"), scales::dollar)) %>% 
+  kable() %>%
+  kable_styling(latex_options = "striped")
 ```
 
 The median income for Chicago increased by 27% (\$13,575). Renters saw a larger percent increase in median income than owners at 31% (\$10,417) and 22% ($16,711) respectively. 
@@ -158,16 +170,18 @@ data %>%
   mutate(poverty_pct = belowpoverty_families / total_families,
          across(ends_with("families"), scales::comma),
          across(ends_with("pct"), scales::percent)) %>%
-  select(year, total_families, poverty_pct, belowpoverty_families)
+  select(year, total_families, poverty_pct, belowpoverty_families) %>% 
+  kable() %>%
+  kable_styling(latex_options = "striped")
 ```
 
 Chicago saw a decrease of 46,595 families (a household of related individuals) between 2015 and 2020. The share of those families living in poverty dropped by 8%, indicating an out-migration of low-income families from the city.
 
 ## Chicago Community Areas Crosswalk
 
-[The Census Bureau provides an explanation of the 2010 to 2020 tract relationships here.](https://www2.census.gov/geo/pdfs/maps-data/data/rel2020/tract/explanation_tab20_tract20_tract10.pdf) This file is joined to the tract relationship file provided by the [City of Chicago Data Portal](https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Census-Tracts-2010/5jrd-6zik) to identify which 2020 decennial tracts are related to the Chicago Community Areas (CCAs) that the 2010 decennial tracts aggregate to.
+[The Census Bureau provides an explanation of the 2010 to 2020 tract relationships here.](https://www2.census.gov/geo/pdfs/maps-data/data/rel2020/tract/explanation_tab20_tract20_tract10.pdf) This file is joined to the tract relationship file provided by the [City of Chicago Data Portal](https://data.cityofchicago.org/Facilities-Geographic-Boundaries/Boundaries-Census-Tracts-2010/5jrd-6zik) to identify which 2020 decennial tracts are related to the Chicago Community Areas (CCAs) that the 2010 decennial tracts aggregate to. We will be releasing this crosswalk file for use by other researchers in a later blog post where we explore change at the CCA level. 
 
-```{r crosswalk}
+```{r crosswalk, include = FALSE}
 chi_tracts_2010 <- read_csv("https://data.cityofchicago.org/resource/74p9-q2aq.csv", col_types = "cccccccccc")
 
 cook_tracts_2010 <- tigris::tracts(state = "IL", county = "Cook", year = 2010) 
