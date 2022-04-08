@@ -85,8 +85,17 @@ The release of the 2020 5-year American Community Survey data provides an opport
 ```{r population total}
 data %>%
   select(Year = year, Population = total_population, Households = total_households) %>%
-  mutate(Households = scales::comma(Households), 
-         Population = scales::comma(Population)) %>%
+  pivot_longer(
+    cols = c(Households, Population),
+    names_to = " "
+  ) %>%
+  pivot_wider(
+    names_from = "Year",
+    values_from = "value"
+  ) %>%
+  select(` `, `2015`, `2020`) %>%
+  mutate(Change = `2020` - `2015`,
+         across(c(`2015`, `2020`, Change), scales::comma)) %>%
   kable() %>%
   kable_styling(latex_options = "striped")
 ```
@@ -195,7 +204,16 @@ data %>%
          poverty_own_pct = belowpoverty_own_families / total_families,
          across(ends_with("families"), scales::comma),
          across(ends_with("pct"), scales::percent)) %>%
-  select(year, total_families, poverty_pct, belowpoverty_families, belowpoverty_rent_families, belowpoverty_own_families, poverty_rent_pct, poverty_own_pct) %>% 
+  select(Year = year, `Families` = total_families, `Families Below Poverty` = poverty_pct, `Percent Renter Families Below Poverty` = poverty_rent_pct, `Percent Homeowner Families Below Poverty` = poverty_own_pct) %>% 
+  pivot_longer(
+    cols = c(`Families`:`Percent Homeowner Families Below Poverty`),
+    names_to = " "
+  ) %>%
+  pivot_wider(
+    names_from = "Year",
+    values_from = "value"
+  ) %>%
+  select(` `, `2015`, `2020`) %>%
   kable() %>%
   kable_styling(latex_options = "striped")
 ```
