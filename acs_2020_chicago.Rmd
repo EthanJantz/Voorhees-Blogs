@@ -76,20 +76,24 @@ data <- bind_rows(chi_2020, chi_2015) %>%
          belowpoverty_rent_families = belowpoverty_rent_families1 + belowpoverty_rent_families2 + belowpoverty_rent_families3)
 ```
 
-# Socio-economic Change in Chicago, 2015 - 2020
+# Overview
 
-The release of the 2020 5-year American Community Survey data allows for an assessment of changes in Chicago's socio-economic composition of both individuals and households. This blog is the first in a series exploring changes in Chicago's demographic and economic composition. 
+The release of the 2020 5-year American Community Survey data provides an opportunity to explore how Chicago and its neighborhoods have changed over the past decade. This blog is the first in a series exploring housing affordability trends in Chicago. This data provides new insights into trends that were observed in our 2006 report [Affordable Housing Conditions and Outlook in Chicago: An Early Warning for Intervention](http://voorheescenter.red.uic.edu/wp-content/uploads/sites/122/2017/10/2006-Affordable-housing-conditions-and-outlook-in-Chicago.pdf). Notably, housing affordability pressures have continued to disproportionately affect low-income households leading to out-migration as they seek more affordable places to live. Obversely (or, on the other side of the coin?) Chicago has seen a growth in median income, though median income for renters has continued to stay well below that of homeowners and the city as a whole. Rental vacancies have declined as well, while rents and home values have increased by almost 20% over 5 years. These changes likely contribute to the continued decline of Chicago's black population as housing affordability pressures hit low-income households of color the hardest. 
 
-## Demographic Change
+## Analysis
 
 ```{r population total}
 data %>%
-  select(year, total_population) %>%
-  mutate(total_population = scales::comma(total_population)) %>%
-  kable()
+  select(Year = year, Population = total_population, Households = total_households) %>%
+  mutate(Households = scales::comma(Households), 
+         Population = scales::comma(Population)) %>%
+  kable() %>%
+  kable_styling(latex_options = "striped")
 ```
 
-Chicago lost an estimated 18,187 residents between 2015 and 2020. Demographically, Chicago has seen declines in groups identifying as white, black, hispanic, and other (a category that includes anyone identifying as neither white, black, asian, native hawaiian/pacific islander, or native american) while groups identifying as asian, native hawaiian/pacific islander, and two or more races increase. People identifying as two or more races saw the biggest change in Chicago's population, growing from 2.4% in 2015 to 5.2% in 2020. 
+Chicago lost an estimated 18,187 residents between 2015 and 2020. Meanwhile, Chicago gained an estimated 45,000 households between 2015 and 2020, indicating a shrink in household size. We will examine this and other questions on household composition in later posts. 
+
+Proportionally, Chicago has seen declines in groups identifying as white, black, hispanic, and other (a category that includes anyone identifying as neither white, black, asian, or as two or more races) while groups identifying as asian and two or more races saw increases. People identifying as two or more races saw the largest change in Chicago's population, growing from 2.4% in 2015 to 5.2% in 2020. 
 
 ```{r demographic}
 data %>%
@@ -97,8 +101,8 @@ data %>%
     white_pct = white_population / total_population,
     black_pct = black_population / total_population,
     asian_pct = asian_population / total_population,
-    api_pct = api_population / total_population,
-    other_pct = other_population / total_population,
+    # api_pct = api_population / total_population,
+    other_pct = (other_population + api_population) / total_population,
     two_pct = two_population / total_population,
     # other_pct = grouped_other_population / total_population,
     hispanic_pct = hispanic_population / total_population,
@@ -109,17 +113,17 @@ data %>%
          ) %>%
   select(
     year, #total_population, 
-    white_pct, #white_population, 
-    black_pct, #black_population, 
-    asian_pct, #asian_population, 
-    api_pct, #api_population,
-    two_pct, #two_population, 
-    other_pct, #other_population
-    hispanic_pct, #hispanic_population, 
+    White_pct = white_pct, #white_population, 
+    Black_pct = black_pct, #black_population, 
+    Asian_pct = asian_pct, #asian_population, 
+    # API_pct = api_pct, #api_population,
+    `Two or more_pct` = two_pct, #two_population, 
+    Other_pct = other_pct, #other_population
+    Hispanic_pct = hispanic_pct, #hispanic_population, 
     # nothispanic_pct, #nothispanic_population 
   ) %>%
   pivot_longer(
-    cols = c(white_pct:hispanic_pct),
+    cols = c(White_pct:Hispanic_pct),
     names_to = "Race",
     names_pattern = "(.*)_pct"
   ) %>%
@@ -129,21 +133,12 @@ data %>%
   ) %>%
   mutate(Change = `2020` - `2015`,
          across(c(`2020`:Change), scales::percent, accuracy = .01)) %>% 
-  kable() %>%
+  select(`Race/Ethnicity` = Race, `2015`, `2020`, Change) %>%
+  kable(caption = "Shifts in Share of Chicago Population by Race/Ethnicity") %>%
   kable_styling(latex_options = "striped")
 ```
 
-## Household Change
-
-```{r household total}
-data %>%
-  select(year, total_households) %>%
-  mutate(total_households = scales::comma(total_households)) %>% 
-  kable() %>%
-  kable_styling(latex_options = "striped")
-```
-
-Chicago gained an estimated 45,000 households between 2015 and 2020. In the context of a net population loss it's likely that household size has decreased on average. We will examine this and other questions on household composition in later posts.
+Chicago saw a modest increase in its share of homeowners and decrease in renter households. Median gross rent increased by 19% (\$189) and the median home value grew by 20% (\$44,700). The rental vacancy rate decreased from 5.9% to 4.8%. This indicates increasing pressure on low-income households as rental units become less available and less affordable.
 
 ```{r tenure}
 data %>%
@@ -154,24 +149,44 @@ data %>%
     vacant_forrent_units = vacant_units_forrent / vacant_units,
     # total_households = scales::comma(total_households),
     across(ends_with(c("units", "forrent")), scales::comma),
-    across(ends_with(c("_rent", "income", "value")), scales::dollar),
+    across(ends_with(c("_rent", "income", "value")), scales::dollar, prefix = " $ "),
     across(ends_with(c("_pct", "rate")), scales::percent)) %>%
-  select(year, renter_pct, median_gross_rent, owner_pct, median_home_value, vacant_units, rental_vacancy_rate, vacant_units_forrent) %>% 
-  kable() %>%
-  kable_styling(latex_options = "striped")
+  select(Year = year, `Percent Renter Households` = renter_pct, `Median Gross Rent` = median_gross_rent, `Median Home Value` = median_home_value, `Rental Vacancy Rate` = rental_vacancy_rate) %>% 
+  pivot_longer(
+    cols = c(`Percent Renter Households`:`Rental Vacancy Rate`),
+    names_to = " "
+  ) %>%
+  pivot_wider(
+    names_from = "Year",
+    values_from = "value"
+  ) %>%
+  select(` `, `2015`, `2020`) %>%
+  kable(format = "html", escape = F) %>%
+  kable_styling(latex_options = "striped") %>%
+  footnote(general = "<i>Rent and home values in inflation adjusted 2020 dollars ($)</i>", general_title = "", escape = F)
 ```
 
-Chicago saw a modest increase in its share of homeowners and decrease in renter households. Median gross rent increased by 19% (\$189) and the median home value grew by 20% (\$44,700). The rental vacancy rate decreased from 5.9% to 4.8%. This indicates increasing pressure on low-income households as rental units become less available and less affordable. 
+ The median income for Chicago increased by 27% (\$13,575). Median income for renters increased by 31% (\$10,417) and owners at 22% ($16,711). 
 
 ```{r income}
 data %>%
-  select(year, median_income, median_renter_income, median_owner_income) %>%
-  mutate(across(ends_with("income"), scales::dollar)) %>% 
+  select(Year = year, `Median Income` = median_income, `Median Income (Renters)` = median_renter_income, `Median Income (Homeowners)` = median_owner_income) %>%
+  mutate(across(contains("Income"), scales::dollar, prefix = " $ ")) %>% 
+  pivot_longer(
+    cols = c(`Median Income`:`Median Income (Homeowners)`),
+    names_to = " "
+  ) %>%
+  pivot_wider(
+    names_from = "Year",
+    values_from = "value"
+  ) %>%
+  select(` `, `2015`, `2020`) %>%
   kable() %>%
-  kable_styling(latex_options = "striped")
+  kable_styling(latex_options = "striped") %>%
+  footnote(general = "<i>Rent and home values in inflation adjusted 2020 dollars ($)</i>", general_title = "", escape = F)
 ```
 
-The median income for Chicago increased by 27% (\$13,575). Median income for renters increased by 31% (\$10,417) and owners at 22% ($16,711). 
+Chicago saw a decrease of 46,595 families (a household of related individuals) between 2015 and 2020. The share of those families living in poverty dropped by 8%, indicating an out-migration of low-income families from the city. The loss of low-income families was largely driven by renters at a loss of 25,086. Chicago's tightening rental market and rising rents are making the city increasingly unaffordable for low-income families. 
 
 ```{r poverty}
 data %>%
@@ -185,7 +200,6 @@ data %>%
   kable_styling(latex_options = "striped")
 ```
 
-Chicago saw a decrease of 46,595 families (a household of related individuals) between 2015 and 2020. The share of those families living in poverty dropped by 8%, indicating an out-migration of low-income families from the city. The loss of low-income families was largely driven by renters at a loss of 25,086. Chicago's tightening rental market and rising rents are making the city increasingly unaffordable for low-income families. 
 
 <!-- ## Chicago Community Areas Crosswalk -->
 

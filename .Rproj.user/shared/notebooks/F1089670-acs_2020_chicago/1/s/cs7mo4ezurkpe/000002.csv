@@ -1,5 +1,0 @@
-"0","data %>%"
-"0","  mutate(poverty_pct = belowpoverty_families / total_families,"
-"0","         across(ends_with(""families""), scales::comma),"
-"0","         across(ends_with(""pct""), scales::percent)) %>%"
-"0","  select(year, total_families, poverty_pct, belowpoverty_families)"
