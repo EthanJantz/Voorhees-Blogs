@@ -1,7 +1,8 @@
 ---
-title: "Analysis of New Census Data Part 1"
+title: "Who Can Live in Chicago?"
+subtitle: "Investigating housing affordability trends using 2020 census data"
 author: "Ethan Jantz"
-date: "3/31/2022"
+date: "`r format(Sys.time(), '%d %B %Y')`"
 output:
   html_document: default
   word_document: default
@@ -57,15 +58,17 @@ inflation_adjust_value <- inflation_table %>%
 chi_2020 <- get_acs("place",
                     variables = acs_vars,
                     year = 2020, 
-                    output = "wide") %>%
+                    output = "wide",
+                    cache_table = T) %>%
   mutate(year = 2020)
 
 chi_2015 <- get_acs("place",
                     variables = acs_vars,
                     year = 2015, 
-                    output = "wide") %>%
+                    output = "wide",
+                    cache_table = T) %>%
   mutate(year = 2015,
-         across(ends_with(c("income", "value", "rent")), ~ .x / inflation_adjust_value))
+         across(ends_with(c("_income", "_value", "_rent")), ~ .x / inflation_adjust_value))
 
 data <- bind_rows(chi_2020, chi_2015) %>%
   filter(NAME == "Chicago city, Illinois") %>%
@@ -143,7 +146,7 @@ data %>%
   mutate(Change = `2020` - `2015`,
          across(c(`2020`:Change), scales::percent, accuracy = .01)) %>% 
   select(`Race/Ethnicity` = Race, `2015`, `2020`, Change) %>%
-  kable(caption = "Shifts in Share of Chicago Population by Race/Ethnicity") %>%
+  kable() %>%
   kable_styling(latex_options = "striped")
 ```
 

@@ -1,0 +1,73 @@
+---
+title: "Chicago Rental Unit Count 2020"
+author: "Ethan Jantz, UIC Voorhees Center"
+date: "4/10/2022"
+output: html_document
+---
+
+A common question asked when drafting policy or legislation related to renters in Chicago is "how many rental units would this affect?" In the case where exemptions are created for owner-occupied bulidings with 6 or fewer units this number can be difficult to pin down as data is not collected on this specific case. This analysis aims to put together a rough estimate using Census microdata from 2020. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+library(kableExtra)
+library(tidyverse)
+
+data <- ipumsr::read_ipums_micro(ddi = here::here("Data", "IPUMS", "chicago_units.xml"),
+                                 data_file = here::here("Data", "IPUMS", "chicago_units.csv.gz"))
+```
+
+Census microdata is organized, harmonized, and held on the Integrated Public Use Microdata Series (IPUMS) database by the University of Minnesota. I utilize the `VACANCY`, `OWNERSHP`, and `UNITSSTR` variables to identify rental units in buildings covered by Chicago's Residential Landlord Tenant Ordinance. `UNITSSTR` is organized into the following categories:
+
+`r ipumsr::ipums_val_labels(data, UNITSSTR) %>% kable() %>% kable_styling()`
+
+The categories relevant to this question are categories 3, 4, 5, 6, and 7. Rental properties are identified by the `OWNERSHP` variable, which identifies owner and renter occupied units. `VACANCY` allows for the identification of vacant units. Unfortunately, owner-occupation is not a variable provided by the Census. Work has been done to identify owner-occupied units using data from the Cook County Assessor's Office, but this has not been performed on more recent data. Thus the number of owner-occupied units will be a subset of the number of units identified using this data. 
+
+Category 7 in `UNITSSTR` idenifies units in 5 - 9 unit buildings. Since we are attempting to identify rental units in buildings composed of 6 or fewer units I will provide three numbers. The first will be the total sum of renter-occupied units in buildings with 9 or fewer units. The second will be the total sume of renter-occupied units in buildings with 4 or fewer units. The final number will be a count with a rough estimate of units in buildings with 6 or fewer units. Since we cannot identify the distribution of unit count within the 5 - 9 unit category we will pull a proportion of those units, 15%, to add to the count. The equation for this estimate is as follows:
+
+> *Count of Units in 4 or fewer unit buildings* + (*Count of units in 5 - 9 unit buildings* * .15)
+
+```{r }
+tibble(
+  Category = c("9 or Fewer", "4 or fewer", "6 or Fewer*"),
+  Count = c(data %>%
+              distinct(SERIAL, .keep_all = T) %>%
+              filter(UNITSSTR %in% c(3, 4, 5, 6, 7),
+                     OWNERSHP == 2,
+                     VACANCY %in% c(0, 1)) %>%
+              count(wt = HHWT) %>%
+              pull(n) %>%
+              scales::comma(), 
+            data %>%
+              distinct(SERIAL, .keep_all = T) %>%
+              filter(UNITSSTR %in% c(3, 4, 5, 6),
+                     OWNERSHP == 2,
+                     VACANCY %in% c(0, 1)) %>%
+              count(wt = HHWT) %>%
+              pull(n) %>%
+              scales::comma(),
+            data %>%
+              distinct(SERIAL, .keep_all = T) %>%
+              filter(UNITSSTR %in% c(3, 4, 5, 6),
+                     OWNERSHP == 2,
+                     VACANCY %in% c(0, 1)) %>%
+              count(wt = HHWT) %>%
+              pull(n) %>%
+              `+`(
+                data %>%
+              distinct(SERIAL, .keep_all = T) %>%
+              filter(UNITSSTR %in% c(7),
+                     OWNERSHP == 2,
+                     VACANCY %in% c(0, 1)) %>%
+              count(wt = HHWT) %>%
+              pull(n) %>%
+                `*`(.15)
+              ) %>%
+              scales::comma(accuracy = 1)
+  )
+) %>%
+  kable() %>%
+  kable_styling(latex_options = "striped") %>%
+  footnote(general_title = "", general = "<i>* This is an estimated number</i>", escape = F)
+```
+
+The above table provides esimates of the total number of units occupied by renters. Not all of these units exist in owner-occupied buildings, and without any official administrative data providing a survey count of owner-occupied units in Chicago we can only find approximate numbers. A policy that would assist in identifying these properties would be a rental registry, a program that has already been implemented in Chicago for [short-term rentals such as AirBnB listings](https://www.chicago.gov/city/en/depts/bacp/supp_info/sharedhousingandaccomodationslicensing.html). Rental registries are already utilized in large cities such as [New York City](https://www1.nyc.gov/site/hpd/services-and-information/register-your-property.page) and [Los Angeles](https://housing.lacity.org/rental-property-owners/rent-registry). The implementation of a rental and landlord register in Chicago, as well as the publication of this register on the City's open data portal, would allow for a better understanding of the state of Chicago's housing stock. 

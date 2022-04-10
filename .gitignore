@@ -5,3 +5,6 @@
 .DS_Store
 .Rbuildignore
 .Rproj.user
+.html
+.doc
+.pdf
