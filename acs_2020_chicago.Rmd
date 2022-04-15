@@ -15,7 +15,7 @@ library(tidyverse)
 library(tidycensus)
 library(patchwork)
 
-ref_vars <- load_variables(2015, "acs5")
+# ref_vars <- load_variables(2015, "acs5")
 
 acs_vars <- c(
   total_population = "B01001_001",
@@ -41,6 +41,10 @@ acs_vars <- c(
   belowpoverty_rent_families1 = "B17019_005",
   belowpoverty_rent_families2 = "B17019_009",
   belowpoverty_rent_families3 = "B17019_012",
+  rentburden_30_34 = "B25070_007",
+  rentburden_35_39 = "B25070_008",
+  rentburden_40_49 = "B25070_009",
+  rentburden_grtoeq_50 = "B25070_010",
   median_income = "B25119_001",
   median_owner_income = "B25119_002",
   median_renter_income = "B25119_003",
@@ -81,7 +85,9 @@ data <- bind_rows(chi_2020, chi_2015) %>%
 
 # Overview
 
-The release of the 2020 5-year American Community Survey data provides an opportunity to explore how Chicago and its neighborhoods have changed over the past decade. This blog is the first in a series exploring housing affordability trends in Chicago. This data provides new insights into trends that were observed in our 2006 report [Affordable Housing Conditions and Outlook in Chicago: An Early Warning for Intervention](http://voorheescenter.red.uic.edu/wp-content/uploads/sites/122/2017/10/2006-Affordable-housing-conditions-and-outlook-in-Chicago.pdf). Notably, housing affordability pressures have continued to disproportionately affect low-income households leading to out-migration as they seek more affordable places to live. Obversely (or, on the other side of the coin?) Chicago has seen a growth in median income, though median income for renters has continued to stay well below that of homeowners and the city as a whole. Rental vacancies have declined as well, while rents and home values have increased by almost 20% over 5 years. These changes likely contribute to the continued decline of Chicago's black population as housing affordability pressures hit low-income households of color the hardest. 
+The release of the 2020 5-year American Community Survey data provides an opportunity to explore how Chicago and its neighborhoods have changed over the past 5 years and a first look at how the COVID-19 pandemic has affected housing affordability. This blog is the first in a series exploring housing affordability trends in Chicago and starts with an analysis of city-wide trends. Future posts will explore change at the neighborhood level. Please note that this post will be using the American Community Survey 5-year estimates, which uses [different rules and survey methods](https://www.census.gov/content/dam/Census/library/publications/2020/acs/acs_general_handbook_2020_ch09.pdf) than the decennial census.
+
+Housing affordability pressures have continued to affect low-income households disproportionately, leading to out-migration of vulnerable residents as they seek more affordable places to live. Conversely, Chicago has experienced an increase in household median income, though median income for renters has continued to stay well both the city median and the median income for homeowners. Rental vacancies have declined as well, while rents and home values have increased by almost 20% over 5 years. These changes likely contribute to the continued decline of Chicago’s black population as housing affordability pressures hit low-income households of color the hardest.
 
 ## Analysis
 
@@ -103,9 +109,9 @@ data %>%
   kable_styling(latex_options = "striped")
 ```
 
-Chicago lost an estimated 18,187 residents between 2015 and 2020. Meanwhile, Chicago gained an estimated 45,000 households between 2015 and 2020, indicating a shrink in household size. We will examine this and other questions on household composition in later posts. 
+Chicago lost an estimated 18,187 residents between 2015 and 2020, resulting in a net population loss of 4,119 since 2010, where the population was estimated at 2,703,466. At the same time, Chicago gained an estimated 45,707 households between 2015 and 2020; a clear indication that household size is shrinking in Chicago, from 2.62 to 2.49 people per household. This is lower than the national average of 2.66.
 
-Proportionally, Chicago has seen declines in groups identifying as white, black, hispanic, and other (a category that includes anyone identifying as neither white, black, asian, or as two or more races) while groups identifying as asian and two or more races saw increases. People identifying as two or more races saw the largest change in Chicago's population, growing from 2.4% in 2015 to 5.2% in 2020. 
+Demographically, Chicago has seen declines in groups identifying as White, Black, Hispanic, and Other (a category that includes anyone identifying as neither white, black, Asian, or as two or more races) while groups identifying as Asian and two or more races saw increases. People identifying as two or more races saw the largest change in Chicago's population, growing from a 2.4% share in 2015 to 5.2% in 2020. 
 
 ```{r demographic}
 data %>%
@@ -150,7 +156,7 @@ data %>%
   kable_styling(latex_options = "striped")
 ```
 
-Chicago saw a modest increase in its share of homeowners and decrease in renter households. Median gross rent increased by 19% (\$189) and the median home value grew by 20% (\$44,700). The rental vacancy rate decreased from 5.9% to 4.8%. This indicates increasing pressure on low-income households as rental units become less available and less affordable.
+Chicago saw a 1% decline in its share of renter households. The percent of renter households that were rent burdened, meaning households with a rent at or above 30% of their household income, decreased by 4.5%. Median gross rent increased by 19% (\$189) and the median home value grew by 20% (\$44,700). The median income for Chicago increased by 27% (\$13,575). Median income increased by 31% (\$10,417) for renters and 22% ($16,711) homeowners. The rental vacancy rate decreased from 5.9% to 4.8%, indicating a tightening rental housing market. While a rising median income among renter households might have led to fewer rent burdened households, it is very likely that these changes indicate an inflow of higher income households as low-income minority renter households are forced out due to a lack of affordable housing. 
 
 ```{r tenure}
 data %>%
@@ -159,13 +165,17 @@ data %>%
     owner_pct = owner_households / total_households,
     rental_vacancy_rate = vacant_units_forrent / (vacant_units + renter_households),
     vacant_forrent_units = vacant_units_forrent / vacant_units,
+    rentburdened = rentburden_30_34 + rentburden_35_39 + rentburden_40_49 + rentburden_grtoeq_50,
+    rentburdened_pct = rentburdened / renter_households,
     # total_households = scales::comma(total_households),
     across(ends_with(c("units", "forrent")), scales::comma),
     across(ends_with(c("_rent", "income", "value")), scales::dollar, prefix = " $ "),
     across(ends_with(c("_pct", "rate")), scales::percent)) %>%
-  select(Year = year, `Percent Renter Households` = renter_pct, `Median Gross Rent` = median_gross_rent, `Median Home Value` = median_home_value, `Rental Vacancy Rate` = rental_vacancy_rate) %>% 
+  select(Year = year, `Percent Renter Households` = renter_pct, `Percent Rent Burdened Households` = rentburdened_pct, 
+         `Median Gross Rent` = median_gross_rent, `Median Home Value` = median_home_value, `Rental Vacancy Rate` = rental_vacancy_rate, 
+         `Median Income` = median_income, `Median Income (Renters)` = median_renter_income, `Median Income (Homeowners)` = median_owner_income) %>%
   pivot_longer(
-    cols = c(`Percent Renter Households`:`Rental Vacancy Rate`),
+    cols = c(`Percent Renter Households`:`Median Income (Homeowners)`),
     names_to = " "
   ) %>%
   pivot_wider(
@@ -178,27 +188,7 @@ data %>%
   footnote(general = "<i>Rent and home values in inflation adjusted 2020 dollars ($)</i>", general_title = "", escape = F)
 ```
 
- The median income for Chicago increased by 27% (\$13,575). Median income for renters increased by 31% (\$10,417) and owners at 22% ($16,711). 
-
-```{r income}
-data %>%
-  select(Year = year, `Median Income` = median_income, `Median Income (Renters)` = median_renter_income, `Median Income (Homeowners)` = median_owner_income) %>%
-  mutate(across(contains("Income"), scales::dollar, prefix = " $ ")) %>% 
-  pivot_longer(
-    cols = c(`Median Income`:`Median Income (Homeowners)`),
-    names_to = " "
-  ) %>%
-  pivot_wider(
-    names_from = "Year",
-    values_from = "value"
-  ) %>%
-  select(` `, `2015`, `2020`) %>%
-  kable() %>%
-  kable_styling(latex_options = "striped") %>%
-  footnote(general = "<i>Rent and home values in inflation adjusted 2020 dollars ($)</i>", general_title = "", escape = F)
-```
-
-Chicago saw a decrease of 46,595 families (a household of related individuals) between 2015 and 2020. The share of those families living in poverty dropped by 8%, indicating an out-migration of low-income families from the city. The loss of low-income families was largely driven by renters at a loss of 25,086. Chicago's tightening rental market and rising rents are making the city increasingly unaffordable for low-income families. 
+Displacement and affordability pressures become more apparent when we look at how families households have declined. Chicago saw a decrease of 46,595 families between 2015 and 2020. The share of those families living in poverty dropped by 8%, also indicating an out-migration of low-income families from the city. The loss is primarily in low-income renter families.
 
 ```{r poverty}
 data %>%
@@ -220,6 +210,8 @@ data %>%
   kable() %>%
   kable_styling(latex_options = "striped")
 ```
+
+There has been a significant increase in incomes, rents, and home values over the past 5 years in Chicago. With growing concerns about gentrification, displacement, and housing affordability the question of who can live in Chicago has never been more relevant. Without direct intervention to support the preservation and development of affordable housing low-income families will continue to be displaced as the gentry moves in. 
 
 
 <!-- ## Chicago Community Areas Crosswalk -->
